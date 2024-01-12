@@ -22,7 +22,7 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All fields are required!");
   }
 
-  const exsistUser = User.findOne({
+  const exsistUser = await User.findOne({
     $or : [{ username },{ email }]
   });
   if(exsistUser){
@@ -53,7 +53,7 @@ const registerUser = asyncHandler(async (req, res) => {
   });
   console.log("🚀 ~ registerUser ~ user:", user);
 
-  const createdUser = User.findById(user._id).select(
+  const createdUser = await User.findById(user._id).select(
     "-password -refreshToken"
   );
 
