@@ -75,4 +75,82 @@ const registerUser = asyncHandler(async (req, res) => {
     .status(201)
     .json(new ApiResponse(200, createdUser, "User registered successfully!"));
 });
-export { registerUser };
+
+const loginUser = asyncHandler(async (req, res) => {
+  // req.body -> data
+  // logged in with username or email
+  //find the user
+  // check password
+  //access and refresh token
+  // send cookies
+
+  const { email, password, username } = req.body;
+  console.log("🚀 ~ loginUser ~ req.body:", req.body);
+
+  if (!username || !password) {
+    throw new ApiError(400, "please provide credentials!");
+  }
+
+  const user = await User.findOne({
+    $or: [{ username }, { email }],
+  });
+
+  if (!user) {
+    throw new ApiError(400, "user doesn't exsist!");
+  }
+
+  const isPasswordValid = await user.isPasswordCorrect(password);
+
+  if (!isPasswordValid) {
+    throw new ApiError(400, "Invalid Credentials!");
+  }
+  const { accessToken, refreshToken } = await generateAccessAndRereshToken(
+    user._id
+  );
+
+  const loggedInUser = await User.findById(user._id).select(
+    "-password -refreshToken"
+  );
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(200, {
+        success: true,
+        message: "Logged in successfully!",
+        user: loggedInUser,
+        refreshToken,
+        accessToken,
+      })
+    );
+});
+
+const logoutUser = asyncHandler(async (req, res) => {
+  // logout always with the help of cookies
+  await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        refreshToken: null,
+      },
+    },
+    { new: true }
+  );
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+  return res
+    .status(200)
+    .clearCookie("accessToken")
+    .refreshToken("refreshToken")
+    .json(new ApiResponse(200, {}, "Logged out Successfully"));
+});
+export { registerUser, loginUser, logoutUser };
